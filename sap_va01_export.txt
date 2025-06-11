@@ -1,0 +1,168 @@
+*&---------------------------------------------------------------------*
+*& Report ZSD_VA01_EXPORT
+*&---------------------------------------------------------------------*
+*& 程式描述: 匯出SD模組VA01銷售訂單資訊
+*& 作者: 系統管理員
+*& 建立日期: 2025/06/11
+*&---------------------------------------------------------------------*
+
+REPORT zsd_va01_export.
+
+*----------------------------------------------------------------------*
+* 資料宣告區
+*----------------------------------------------------------------------*
+TABLES: vbak,    " 銷售文件: 表頭資料
+        vbap,    " 銷售文件: 項目資料
+        kna1.    " 客戶主檔
+
+* 選擇畫面參數
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+  SELECT-OPTIONS: s_vbeln FOR vbak-vbeln,     " 銷售訂單號碼
+                  s_erdat FOR vbak-erdat,     " 建立日期
+                  s_kunnr FOR vbak-kunnr,     " 客戶編號
+                  s_vkorg FOR vbak-vkorg.     " 銷售組織
+SELECTION-SCREEN END OF BLOCK b1.
+
+* 內部表和結構定義
+TYPES: BEGIN OF ty_sales_order,
+         vbeln       TYPE vbak-vbeln,         " 銷售訂單號碼
+         erdat       TYPE vbak-erdat,         " 建立日期
+         kunnr       TYPE vbak-kunnr,         " 客戶編號
+         name1       TYPE kna1-name1,         " 客戶名稱
+         vkorg       TYPE vbak-vkorg,         " 銷售組織
+         vtweg       TYPE vbak-vtweg,         " 配銷通路
+         spart       TYPE vbak-spart,         " 產品組
+         auart       TYPE vbak-auart,         " 銷售文件類型
+         netwr       TYPE vbak-netwr,         " 淨值
+         waerk       TYPE vbak-waerk,         " 貨幣
+         posnr       TYPE vbap-posnr,         " 項目號碼
+         matnr       TYPE vbap-matnr,         " 物料編號
+         kwmeng      TYPE vbap-kwmeng,        " 訂單數量
+         vrkme       TYPE vbap-vrkme,         " 銷售單位
+         netpr       TYPE vbap-netpr,         " 淨單價
+       END OF ty_sales_order.
+
+* 內部表宣告
+DATA: lt_sales_order TYPE TABLE OF ty_sales_order,
+      ls_sales_order TYPE ty_sales_order,
+      lv_count       TYPE i.
+
+* 區域變數宣告
+DATA: lv_vbeln TYPE vbak-vbeln,
+      lv_kunnr TYPE vbak-kunnr,
+      lv_vkorg TYPE vbak-vkorg,
+      lv_name1 TYPE kna1-name1,
+      lv_netwr TYPE vbak-netwr,
+      lv_waerk TYPE vbak-waerk.
+
+*----------------------------------------------------------------------*
+* 文字元素
+*----------------------------------------------------------------------*
+TEXT-001: '選擇條件'.
+TEXT-002: '銷售訂單資料匯出結果'.
+TEXT-003: '查無資料'.
+
+*----------------------------------------------------------------------*
+* 主程式開始
+*----------------------------------------------------------------------*
+START-OF-SELECTION.
+
+  " 清空內部表
+  CLEAR: lt_sales_order, ls_sales_order, lv_count.
+
+  " 查詢銷售訂單表頭和項目資料
+  SELECT h~vbeln,
+         h~erdat,
+         h~kunnr,
+         k~name1,
+         h~vkorg,
+         h~vtweg,
+         h~spart,
+         h~auart,
+         h~netwr,
+         h~waerk,
+         i~posnr,
+         i~matnr,
+         i~kwmeng,
+         i~vrkme,
+         i~netpr
+    FROM vbak AS h
+    INNER JOIN vbap AS i ON h~vbeln = i~vbeln
+    LEFT JOIN kna1 AS k ON h~kunnr = k~kunnr
+    INTO CORRESPONDING FIELDS OF TABLE lt_sales_order
+    WHERE h~vbeln IN s_vbeln
+      AND h~erdat IN s_erdat
+      AND h~kunnr IN s_kunnr
+      AND h~vkorg IN s_vkorg.
+
+  " 檢查是否有資料
+  DESCRIBE TABLE lt_sales_order LINES lv_count.
+
+  IF lv_count = 0.
+    " 沒有資料時顯示訊息
+    WRITE: / TEXT-003.
+    SKIP 1.
+    WRITE: / '請檢查選擇條件是否正確。'.
+  ELSE.
+    " 有資料時進行輸出
+    PERFORM display_results.
+  ENDIF.
+
+*----------------------------------------------------------------------*
+* 副程式: 顯示結果
+*----------------------------------------------------------------------*
+FORM display_results.
+  
+  " 標題
+  WRITE: / TEXT-002.
+  SKIP 1.
+  
+  " 表頭
+  WRITE: / sy-uline(150).
+  WRITE: / '|', '銷售訂單', 
+         '|', '建立日期',
+         '|', '客戶編號',
+         '|', '客戶名稱',
+         '|', '銷售組織',
+         '|', '項目',
+         '|', '物料編號',
+         '|', '數量',
+         '|', '淨值',
+         '|', '貨幣', '|'.
+  WRITE: / sy-uline(150).
+
+  " 資料明細
+  LOOP AT lt_sales_order INTO ls_sales_order.
+    
+    " 使用區域變數儲存structure資料
+    lv_vbeln = ls_sales_order-vbeln.
+    lv_kunnr = ls_sales_order-kunnr.
+    lv_vkorg = ls_sales_order-vkorg.
+    lv_name1 = ls_sales_order-name1.
+    lv_netwr = ls_sales_order-netwr.
+    lv_waerk = ls_sales_order-waerk.
+    
+    " 格式化輸出
+    WRITE: / '|', lv_vbeln,
+           '|', ls_sales_order-erdat,
+           '|', lv_kunnr,
+           '|', lv_name1(20),
+           '|', lv_vkorg,
+           '|', ls_sales_order-posnr,
+           '|', ls_sales_order-matnr,
+           '|', ls_sales_order-kwmeng,
+           '|', lv_netwr,
+           '|', lv_waerk, '|'.
+  ENDLOOP.
+  
+  WRITE: / sy-uline(150).
+  SKIP 1.
+  WRITE: / '總共找到', lv_count, '筆資料。'.
+  
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* 程式結束
+*----------------------------------------------------------------------*
+END-OF-SELECTION.
+  WRITE: / '程式執行完成。'.

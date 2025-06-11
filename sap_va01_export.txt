@@ -1,168 +1,248 @@
 *&---------------------------------------------------------------------*
-*& Report ZSD_VA01_EXPORT
+*& Report ZSD_VA01_EXPORT_PCE
 *&---------------------------------------------------------------------*
-*& 程式描述: 匯出SD模組VA01銷售訂單資訊
-*& 作者: 系統管理員
-*& 建立日期: 2025/06/11
+*& SAP S/4HANA Cloud PCE程式 - VA01銷售訂單資料匯出
+*& 功能：從SD模組匯出銷售訂單資訊
 *&---------------------------------------------------------------------*
-
-REPORT zsd_va01_export.
+REPORT zsd_va01_export_pce.
 
 *----------------------------------------------------------------------*
 * 資料宣告區
 *----------------------------------------------------------------------*
-TABLES: vbak,    " 銷售文件: 表頭資料
-        vbap,    " 銷售文件: 項目資料
-        kna1.    " 客戶主檔
+" 銷售訂單表頭資料結構
+TYPES: BEGIN OF ty_sales_header,
+         vbeln       TYPE vbak-vbeln,    " 銷售訂單號碼
+         erdat       TYPE vbak-erdat,    " 建立日期
+         erzet       TYPE vbak-erzet,    " 建立時間
+         ernam       TYPE vbak-ernam,    " 建立者
+         audat       TYPE vbak-audat,    " 訂單日期
+         vbtyp       TYPE vbak-vbtyp,    " 單據類型
+         trvog       TYPE vbak-trvog,    " 交易群組
+         auart       TYPE vbak-auart,    " 銷售訂單類型
+         netwr       TYPE vbak-netwr,    " 淨值
+         waerk       TYPE vbak-waerk,    " 幣別
+         kunnr       TYPE vbak-kunnr,    " 售達方
+         vkorg       TYPE vbak-vkorg,    " 銷售組織
+         vtweg       TYPE vbak-vtweg,    " 配銷通路
+         spart       TYPE vbak-spart,    " 產品組
+         vkbur       TYPE vbak-vkbur,    " 銷售辦公室
+         vkgrp       TYPE vbak-vkgrp,    " 銷售群組
+         bstnk       TYPE vbak-bstnk,    " 客戶採購單號
+         bstdk       TYPE vbak-bstdk,    " 客戶採購單日期
+       END OF ty_sales_header.
 
-* 選擇畫面參數
+" 銷售訂單明細資料結構
+TYPES: BEGIN OF ty_sales_item,
+         vbeln       TYPE vbap-vbeln,    " 銷售訂單號碼
+         posnr       TYPE vbap-posnr,    " 項目號碼
+         matnr       TYPE vbap-matnr,    " 物料號碼
+         arktx       TYPE vbap-arktx,    " 物料說明
+         kwmeng      TYPE vbap-kwmeng,   " 訂單數量
+         vrkme       TYPE vbap-vrkme,    " 銷售單位
+         netwr       TYPE vbap-netwr,    " 淨值
+         waerk       TYPE vbap-waerk,    " 幣別
+         werks       TYPE vbap-werks,    " 工廠
+         lgort       TYPE vbap-lgort,    " 儲存地點
+         vstel       TYPE vbap-vstel,    " 出貨點
+         route       TYPE vbap-route,    " 路線
+         lprio       TYPE vbap-lprio,    " 配送優先權
+         abgru       TYPE vbap-abgru,    " 拒絕原因
+       END OF ty_sales_item.
+
+" 內部表宣告
+DATA: lt_sales_header TYPE TABLE OF ty_sales_header,
+      lt_sales_item   TYPE TABLE OF ty_sales_item.
+
+" 區域變數 (Structure)
+DATA: ls_sales_header TYPE ty_sales_header,
+      ls_sales_item   TYPE ty_sales_item.
+
+" 其他變數
+DATA: lv_lines        TYPE i,
+      lv_message      TYPE string.
+
+*----------------------------------------------------------------------*
+* 選擇條件
+*----------------------------------------------------------------------*
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
-  SELECT-OPTIONS: s_vbeln FOR vbak-vbeln,     " 銷售訂單號碼
-                  s_erdat FOR vbak-erdat,     " 建立日期
-                  s_kunnr FOR vbak-kunnr,     " 客戶編號
-                  s_vkorg FOR vbak-vkorg.     " 銷售組織
+PARAMETERS: p_vbeln TYPE vbak-vbeln OBLIGATORY.     " 銷售訂單號碼
+SELECT-OPTIONS: s_erdat FOR sy-datum,               " 建立日期範圍
+                s_vkorg FOR ls_sales_header-vkorg,  " 銷售組織
+                s_vtweg FOR ls_sales_header-vtweg,  " 配銷通路
+                s_spart FOR ls_sales_header-spart.  " 產品組
 SELECTION-SCREEN END OF BLOCK b1.
 
-* 內部表和結構定義
-TYPES: BEGIN OF ty_sales_order,
-         vbeln       TYPE vbak-vbeln,         " 銷售訂單號碼
-         erdat       TYPE vbak-erdat,         " 建立日期
-         kunnr       TYPE vbak-kunnr,         " 客戶編號
-         name1       TYPE kna1-name1,         " 客戶名稱
-         vkorg       TYPE vbak-vkorg,         " 銷售組織
-         vtweg       TYPE vbak-vtweg,         " 配銷通路
-         spart       TYPE vbak-spart,         " 產品組
-         auart       TYPE vbak-auart,         " 銷售文件類型
-         netwr       TYPE vbak-netwr,         " 淨值
-         waerk       TYPE vbak-waerk,         " 貨幣
-         posnr       TYPE vbap-posnr,         " 項目號碼
-         matnr       TYPE vbap-matnr,         " 物料編號
-         kwmeng      TYPE vbap-kwmeng,        " 訂單數量
-         vrkme       TYPE vbap-vrkme,         " 銷售單位
-         netpr       TYPE vbap-netpr,         " 淨單價
-       END OF ty_sales_order.
-
-* 內部表宣告
-DATA: lt_sales_order TYPE TABLE OF ty_sales_order,
-      ls_sales_order TYPE ty_sales_order,
-      lv_count       TYPE i.
-
-* 區域變數宣告
-DATA: lv_vbeln TYPE vbak-vbeln,
-      lv_kunnr TYPE vbak-kunnr,
-      lv_vkorg TYPE vbak-vkorg,
-      lv_name1 TYPE kna1-name1,
-      lv_netwr TYPE vbak-netwr,
-      lv_waerk TYPE vbak-waerk.
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-002.
+PARAMETERS: p_header AS CHECKBOX DEFAULT 'X',       " 匯出表頭資料
+            p_item   AS CHECKBOX DEFAULT 'X'.       " 匯出明細資料
+SELECTION-SCREEN END OF BLOCK b2.
 
 *----------------------------------------------------------------------*
-* 文字元素
+* 文本定義
 *----------------------------------------------------------------------*
 TEXT-001: '選擇條件'.
-TEXT-002: '銷售訂單資料匯出結果'.
-TEXT-003: '查無資料'.
+TEXT-002: '匯出選項'.
 
 *----------------------------------------------------------------------*
 * 主程式開始
 *----------------------------------------------------------------------*
 START-OF-SELECTION.
+  PERFORM get_sales_data.
+  PERFORM display_results.
 
+*----------------------------------------------------------------------*
+* 取得銷售訂單資料
+*----------------------------------------------------------------------*
+FORM get_sales_data.
   " 清空內部表
-  CLEAR: lt_sales_order, ls_sales_order, lv_count.
+  CLEAR: lt_sales_header, lt_sales_item.
 
-  " 查詢銷售訂單表頭和項目資料
-  SELECT h~vbeln,
-         h~erdat,
-         h~kunnr,
-         k~name1,
-         h~vkorg,
-         h~vtweg,
-         h~spart,
-         h~auart,
-         h~netwr,
-         h~waerk,
-         i~posnr,
-         i~matnr,
-         i~kwmeng,
-         i~vrkme,
-         i~netpr
-    FROM vbak AS h
-    INNER JOIN vbap AS i ON h~vbeln = i~vbeln
-    LEFT JOIN kna1 AS k ON h~kunnr = k~kunnr
-    INTO CORRESPONDING FIELDS OF TABLE lt_sales_order
-    WHERE h~vbeln IN s_vbeln
-      AND h~erdat IN s_erdat
-      AND h~kunnr IN s_kunnr
-      AND h~vkorg IN s_vkorg.
+  " 取得銷售訂單表頭資料
+  IF p_header = 'X'.
+    SELECT vbeln, erdat, erzet, ernam, audat, vbtyp, trvog, auart,
+           netwr, waerk, kunnr, vkorg, vtweg, spart, vkbur, vkgrp,
+           bstnk, bstdk
+      FROM vbak
+      INTO TABLE @lt_sales_header
+      WHERE vbeln = @p_vbeln
+        AND erdat IN @s_erdat
+        AND vkorg IN @s_vkorg
+        AND vtweg IN @s_vtweg
+        AND spart IN @s_spart.
 
-  " 檢查是否有資料
-  DESCRIBE TABLE lt_sales_order LINES lv_count.
-
-  IF lv_count = 0.
-    " 沒有資料時顯示訊息
-    WRITE: / TEXT-003.
-    SKIP 1.
-    WRITE: / '請檢查選擇條件是否正確。'.
-  ELSE.
-    " 有資料時進行輸出
-    PERFORM display_results.
+    " 檢查是否有資料
+    DESCRIBE TABLE lt_sales_header LINES lv_lines.
+    IF lv_lines = 0.
+      MESSAGE '查無銷售訂單表頭資料' TYPE 'I'.
+      RETURN.
+    ENDIF.
   ENDIF.
 
-*----------------------------------------------------------------------*
-* 副程式: 顯示結果
-*----------------------------------------------------------------------*
-FORM display_results.
-  
-  " 標題
-  WRITE: / TEXT-002.
-  SKIP 1.
-  
-  " 表頭
-  WRITE: / sy-uline(150).
-  WRITE: / '|', '銷售訂單', 
-         '|', '建立日期',
-         '|', '客戶編號',
-         '|', '客戶名稱',
-         '|', '銷售組織',
-         '|', '項目',
-         '|', '物料編號',
-         '|', '數量',
-         '|', '淨值',
-         '|', '貨幣', '|'.
-  WRITE: / sy-uline(150).
+  " 取得銷售訂單明細資料
+  IF p_item = 'X'.
+    SELECT vbeln, posnr, matnr, arktx, kwmeng, vrkme, netwr, waerk,
+           werks, lgort, vstel, route, lprio, abgru
+      FROM vbap
+      INTO TABLE @lt_sales_item
+      WHERE vbeln = @p_vbeln.
 
-  " 資料明細
-  LOOP AT lt_sales_order INTO ls_sales_order.
-    
-    " 使用區域變數儲存structure資料
-    lv_vbeln = ls_sales_order-vbeln.
-    lv_kunnr = ls_sales_order-kunnr.
-    lv_vkorg = ls_sales_order-vkorg.
-    lv_name1 = ls_sales_order-name1.
-    lv_netwr = ls_sales_order-netwr.
-    lv_waerk = ls_sales_order-waerk.
-    
-    " 格式化輸出
-    WRITE: / '|', lv_vbeln,
-           '|', ls_sales_order-erdat,
-           '|', lv_kunnr,
-           '|', lv_name1(20),
-           '|', lv_vkorg,
-           '|', ls_sales_order-posnr,
-           '|', ls_sales_order-matnr,
-           '|', ls_sales_order-kwmeng,
-           '|', lv_netwr,
-           '|', lv_waerk, '|'.
-  ENDLOOP.
-  
-  WRITE: / sy-uline(150).
-  SKIP 1.
-  WRITE: / '總共找到', lv_count, '筆資料。'.
-  
+    " 檢查是否有明細資料
+    DESCRIBE TABLE lt_sales_item LINES lv_lines.
+    IF lv_lines = 0 AND p_header = space.
+      MESSAGE '查無銷售訂單明細資料' TYPE 'I'.
+      RETURN.
+    ENDIF.
+  ENDIF.
+
 ENDFORM.
 
 *----------------------------------------------------------------------*
-* 程式結束
+* 顯示結果
 *----------------------------------------------------------------------*
-END-OF-SELECTION.
-  WRITE: / '程式執行完成。'.
+FORM display_results.
+  " 顯示表頭資料
+  IF p_header = 'X' AND lines( lt_sales_header ) > 0.
+    WRITE: / '=== 銷售訂單表頭資料 ==='.
+    ULINE.
+
+    LOOP AT lt_sales_header INTO ls_sales_header.
+      WRITE: / '訂單號碼:', ls_sales_header-vbeln,
+             / '建立日期:', ls_sales_header-erdat,
+             / '建立時間:', ls_sales_header-erzet,
+             / '建立者:', ls_sales_header-ernam,
+             / '訂單日期:', ls_sales_header-audat,
+             / '訂單類型:', ls_sales_header-auart,
+             / '淨值:', ls_sales_header-netwr, ls_sales_header-waerk,
+             / '售達方:', ls_sales_header-kunnr,
+             / '銷售組織:', ls_sales_header-vkorg,
+             / '配銷通路:', ls_sales_header-vtweg,
+             / '產品組:', ls_sales_header-spart,
+             / '銷售辦公室:', ls_sales_header-vkbur,
+             / '銷售群組:', ls_sales_header-vkgrp,
+             / '客戶採購單號:', ls_sales_header-bstnk,
+             / '客戶採購單日期:', ls_sales_header-bstdk.
+      ULINE.
+    ENDLOOP.
+  ENDIF.
+
+  " 顯示明細資料
+  IF p_item = 'X' AND lines( lt_sales_item ) > 0.
+    WRITE: / '=== 銷售訂單明細資料 ==='.
+    ULINE.
+
+    " 表頭
+    WRITE: / '項目', 10 '物料號碼', 30 '物料說明', 60 '數量',
+             75 '單位', 85 '淨值', 100 '工廠', 110 '儲存地點'.
+    ULINE.
+
+    LOOP AT lt_sales_item INTO ls_sales_item.
+      WRITE: / ls_sales_item-posnr UNDER '項目',
+               ls_sales_item-matnr UNDER '物料號碼',
+               ls_sales_item-arktx(25) UNDER '物料說明',
+               ls_sales_item-kwmeng UNDER '數量',
+               ls_sales_item-vrkme UNDER '單位',
+               ls_sales_item-netwr UNDER '淨值',
+               ls_sales_item-werks UNDER '工廠',
+               ls_sales_item-lgort UNDER '儲存地點'.
+    ENDLOOP.
+    ULINE.
+  ENDIF.
+
+  " 如果都沒有資料
+  IF lines( lt_sales_header ) = 0 AND lines( lt_sales_item ) = 0.
+    WRITE: / '查無資料 - 請檢查輸入條件'.
+    WRITE: / '建議：'.
+    WRITE: / '1. 確認銷售訂單號碼是否正確'.
+    WRITE: / '2. 檢查日期範圍設定'.
+    WRITE: / '3. 確認銷售組織、配銷通路、產品組設定'.
+  ENDIF.
+
+  " 顯示處理統計
+  IF lines( lt_sales_header ) > 0 OR lines( lt_sales_item ) > 0.
+    WRITE: / '=== 處理統計 ==='.
+    WRITE: / '表頭記錄數:', lines( lt_sales_header ).
+    WRITE: / '明細記錄數:', lines( lt_sales_item ).
+    WRITE: / '處理完成時間:', sy-datum, sy-uzeit.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* 錯誤處理副程式
+*----------------------------------------------------------------------*
+FORM error_handling USING pv_error_text TYPE string.
+  WRITE: / '錯誤訊息:', pv_error_text.
+  MESSAGE pv_error_text TYPE 'E'.
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* 資料驗證副程式
+*----------------------------------------------------------------------*
+FORM validate_input.
+  " 驗證銷售訂單號碼格式
+  IF p_vbeln IS INITIAL.
+    PERFORM error_handling USING '銷售訂單號碼不可為空'.
+  ENDIF.
+
+  " 驗證至少選擇一個匯出選項
+  IF p_header = space AND p_item = space.
+    PERFORM error_handling USING '請至少選擇一個匯出選項（表頭或明細）'.
+  ENDIF.
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* 初始化
+*----------------------------------------------------------------------*
+INITIALIZATION.
+  " 設定預設值
+  s_erdat-sign = 'I'.
+  s_erdat-option = 'BT'.
+  s_erdat-low = sy-datum - 30.  " 預設查詢最近30天
+  s_erdat-high = sy-datum.
+  APPEND s_erdat.
+
+*----------------------------------------------------------------------*
+* 輸入檢查
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN.
+  PERFORM validate_input.

@@ -235,7 +235,7 @@
         <mxCell id="9KYV-FjoZN8ojiwxmDRu-410" value="MinerU 2.5&#xa;文本解析" style="whiteSpace=wrap;strokeWidth=2;fontSize=14;" vertex="1" parent="9KYV-FjoZN8ojiwxmDRu-460">
           <mxGeometry x="1310" y="254" width="260" height="54" as="geometry" />
         </mxCell>
-        <mxCell id="9KYV-FjoZN8ojiwxmDRu-411" value="" style="group;fontSize=14;fillColor=#F5F5F5;" vertex="1" connectable="0" parent="9KYV-FjoZN8ojiwxmDRu-460">
+        <mxCell id="9KYV-FjoZN8ojiwxmDRu-411" value="" style="group;fontSize=14;fillColor=#B3E5FC;" vertex="1" connectable="0" parent="9KYV-FjoZN8ojiwxmDRu-460">
           <mxGeometry x="50" y="709" width="1540" height="104" as="geometry" />
         </mxCell>
         <mxCell id="9KYV-FjoZN8ojiwxmDRu-412" value="Infrastructure" style="whiteSpace=wrap;strokeWidth=2;fontSize=14;fontStyle=1;fillColor=none;" vertex="1" parent="9KYV-FjoZN8ojiwxmDRu-411">

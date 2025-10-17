@@ -120,15 +120,17 @@
     </mxGraphModel>
   </diagram>
   <diagram id="kYeqwXDCjR5PvaoNh3HP" name="第 2 页">
-    <mxGraphModel dx="-326" dy="878" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1200" background="#FFFFFF" math="0" shadow="0" adaptiveColors="none">
+    <mxGraphModel dx="-36" dy="1038" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1200" background="#FFFFFF" math="0" shadow="0" adaptiveColors="none">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="9KYV-FjoZN8ojiwxmDRu-460" value="" style="group;fillColor=none;" parent="1" vertex="1" connectable="0">
           <mxGeometry x="2960" y="420" width="1640" height="850" as="geometry" />
         </mxCell>
-        <mxCell id="9KYV-FjoZN8ojiwxmDRu-390" value="&lt;div&gt;Hon AI Architecture&lt;/div&gt;" style="swimlane;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;startSize=23;" parent="9KYV-FjoZN8ojiwxmDRu-460" vertex="1">
-          <mxGeometry width="1640" height="850" as="geometry" />
+        <mxCell id="9KYV-FjoZN8ojiwxmDRu-390" value="&lt;div&gt;Hon AI Platform&lt;/div&gt;" style="swimlane;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;startSize=23;" parent="9KYV-FjoZN8ojiwxmDRu-460" vertex="1">
+          <mxGeometry width="1640" height="850" as="geometry">
+            <mxRectangle width="120" height="30" as="alternateBounds" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="9KYV-FjoZN8ojiwxmDRu-391" value="Application" style="whiteSpace=wrap;strokeWidth=2;fontSize=18;fontStyle=1;fillColor=#90CAF9;" parent="9KYV-FjoZN8ojiwxmDRu-460" vertex="1">
           <mxGeometry x="50" y="70" width="1540" height="104" as="geometry" />
